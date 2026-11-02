@@ -1,0 +1,46 @@
+name: Seite & Belegung
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "7,37 4-21 * * *"   # alle 30 Minuten, ca. 5–23 Uhr (Winterzeit)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Belegung abrufen
+        run: python3 tools/update_pace.py
+      - name: Belegung speichern
+        run: |
+          if git diff --quiet -- pace.json; then
+            echo "Keine Änderung an pace.json"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add pace.json
+            git commit -m "Belegung aktualisiert"
+            git push
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
